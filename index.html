@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>사업체 스마트 비용·수입 정리부</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- QRCode.js for mobile sharing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    * { font-family: 'Pretendard', sans-serif; }
+    .sheet-grid th, .sheet-grid td { border: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col justify-between">
+
+<!-- [상단 헤더 네비게이션] -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap justify-between items-center gap-3">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-200">
+        <i class="fa-solid fa-file-invoice-dollar text-xl"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">사업체 비용·수입 스마트 정리부</h1>
+          <span id="headerSyncStatus" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            드라이브 미연결 (로컬 모드)
+          </span>
+        </div>
+        <p class="text-xs text-slate-500 hidden sm:block">입력 즉시 내 구글 드라이브(스프레드시트)에 실시간 누적 및 월/분기 자동 결산</p>
+      </div>
+    </div>
+    
+    <div class="flex items-center space-x-1.5 sm:space-x-2">
+      <!-- 깃허브 배포 가이드 모달 버튼 -->
+      <button onclick="openGithubGuideModal()" class="px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 transition flex items-center gap-1.5 shadow-xs">
+        <i class="fa-brands fa-github text-slate-900"></i>
+        <span class="hidden sm:inline">GitHub 무료 배포</span>
+      </button>
+      <!-- 구글 시트 실시간 불러오기(동기화) 버튼 -->
+      <button onclick="fetchSheetData()" id="btnSyncRefresh" class="px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition flex items-center gap-1.5 shadow-xs">
+        <i class="fa-solid fa-arrows-rotate text-blue-600" id="iconSyncRefresh"></i>
+        <span class="hidden sm:inline">시트 데이터 동기화</span>
+      </button>
+      <!-- 구글 드라이브 연동 모달 버튼 -->
+      <button onclick="openSyncModal()" class="px-3 py-1.5 text-xs sm:text-sm font-semibold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 rounded-lg border border-emerald-300 transition flex items-center gap-1.5 shadow-xs">
+        <i class="fa-solid fa-cloud-arrow-up text-emerald-600"></i>
+        <span>구글 드라이브 연동</span>
+      </button>
+      <!-- 모바일 입력 QR 공유 버튼 -->
+      <button onclick="openQrModal()" class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-white hover:bg-slate-100 rounded-lg border border-slate-300 transition flex items-center gap-1">
+        <i class="fa-solid fa-qrcode text-emerald-600"></i>
+        <span>QR 코드 열기</span>
+      </button>
+      <!-- 엑셀 CSV 다운로드 버튼 -->
+      <button onclick="exportToCSV()" class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-white hover:bg-slate-100 rounded-lg border border-slate-300 transition flex items-center gap-1">
+        <i class="fa-solid fa-file-excel text-emerald-600"></i>
+        <span class="hidden sm:inline">CSV 백업</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6 w-full flex-1">
+
+  <!-- [안내 배너] 구글 드라이브 연동 가이드 -->
+  <div id="driveAlertBanner" class="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0">
+        <i class="fa-brands fa-google-drive text-lg"></i>
+      </div>
+      <div>
+        <h3 class="text-xs sm:text-sm font-bold text-emerald-950">내 구글 드라이브에 입력 즉시 실시간 누적하고 싶으신가요?</h3>
+        <p class="text-xs text-emerald-800">우측 상단 <strong>[구글 드라이브 연동]</strong>을 누르면 간단한 1회 설정으로 모든 입력 데이터가 내 구글 시트에 차곡차곡 영구 저장됩니다.</p>
+      </div>
+    </div>
+    <button onclick="openSyncModal()" class="shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition shadow-xs">
+      연동 방법 보기
+    </button>
+  </div>
+
+  <!-- [1] 비용 및 수입 간편 입력 폼 (맨 먼저 배치) -->
+  <section class="bg-white rounded-2xl border-2 border-emerald-500/30 shadow-md p-6 space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
+          <i class="fa-solid fa-pen-to-square"></i>
+        </div>
+        <div>
+          <h2 class="text-base font-bold text-slate-900">비용 및 수입 간편 입력</h2>
+          <p class="text-xs text-slate-500">날짜, 항목명, 금액을 입력 후 [입력하기]를 누르면 즉시 시트에 기록 및 자동 결산됩니다.</p>
+        </div>
+      </div>
+      <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+        <i class="fa-solid fa-bolt mr-1"></i>실시간 자동 정리
+      </span>
+    </div>
+
+    <!-- 입력 양식 폼 -->
+    <form id="entryForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4">
+        
+        <!-- 날짜 선택 -->
+        <div class="md:col-span-2">
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            날짜 <span class="text-rose-500">*</span>
+          </label>
+          <input type="date" id="inputDate" required class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition">
+        </div>
+
+        <!-- 구분 선택: 비용 vs 수입 -->
+        <div class="md:col-span-2">
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            거래 구분 <span class="text-rose-500">*</span>
+          </label>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button type="button" id="btnTypeExpense" onclick="setType('expense')" class="py-2 px-2 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1 bg-rose-50 border-rose-300 text-rose-700 ring-2 ring-rose-400">
+              <i class="fa-solid fa-arrow-down-long"></i> 비용
+            </button>
+            <button type="button" id="btnTypeIncome" onclick="setType('income')" class="py-2 px-2 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1 bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100">
+              <i class="fa-solid fa-arrow-up-long"></i> 수입
+            </button>
+          </div>
+        </div>
+
+        <!-- 카테고리 -->
+        <div class="md:col-span-2">
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            카테고리 분류 <span class="text-rose-500">*</span>
+          </label>
+          <select id="inputCategory" class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition">
+            <!-- 동적 옵션 생성 -->
+          </select>
+        </div>
+
+        <!-- 항목 내용 (비용아이템 또는 수입내용) -->
+        <div class="md:col-span-3">
+          <label id="lblItemTitle" class="block text-xs font-bold text-slate-700 mb-1">
+            비용 아이템명 <span class="text-rose-500">*</span>
+          </label>
+          <input type="text" id="inputTitle" required placeholder="예: 서버 호스팅비, 사무실 임대료" class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition">
+        </div>
+
+        <!-- 금액 (비용금액 또는 수입금액) -->
+        <div class="md:col-span-3">
+          <label id="lblAmountTitle" class="block text-xs font-bold text-slate-700 mb-1">
+            비용 금액 (원) <span class="text-rose-500">*</span>
+          </label>
+          <div class="relative">
+            <span class="absolute left-3 top-2 text-slate-400 font-bold text-xs sm:text-sm">₩</span>
+            <input type="number" id="inputAmount" required min="1" step="1" placeholder="금액 입력" class="w-full pl-8 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none font-semibold transition">
+          </div>
+        </div>
+
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-end">
+        <!-- 비고 / 메모 -->
+        <div class="md:col-span-9">
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            비고 / 메모 (선택)
+          </label>
+          <input type="text" id="inputNote" placeholder="결제수단, 영수증 번호, 거래처 메모 등" class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition">
+        </div>
+
+        <!-- 입력하기 단추 -->
+        <div class="md:col-span-3">
+          <button type="submit" id="submitBtn" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold rounded-xl shadow-md shadow-emerald-200 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-paper-plane text-xs"></i>
+            <span id="submitBtnText">입력하기 (구글 시트 저장)</span>
+          </button>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <!-- [2] 월별 · 분기별 총액 집계 현황 및 차트 (주별 삭제 완료) -->
+  <section class="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 pb-4">
+      <div>
+        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-chart-pie text-emerald-600"></i>
+          월별 · 분기별 총액 자동 집계
+        </h2>
+        <p class="text-xs text-slate-500">입력된 거래가 실시간으로 월별/분기별 수입, 비용 및 순익으로 자동 분류·합산됩니다.</p>
+      </div>
+
+      <!-- 탭 버튼: 월별, 분기별 유지 -->
+      <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-600">
+        <button onclick="switchTab('month')" id="tabBtnMonth" class="px-4 py-1.5 rounded-lg bg-white shadow-xs text-emerald-700 font-bold transition">월별 (Monthly)</button>
+        <button onclick="switchTab('quarter')" id="tabBtnQuarter" class="px-4 py-1.5 rounded-lg hover:text-slate-900 transition">분기별 (Quarterly)</button>
+      </div>
+    </div>
+
+    <!-- 집계 차트 -->
+    <div class="h-60 w-full pt-2">
+      <canvas id="summaryChart"></canvas>
+    </div>
+
+    <!-- 집계 요약 테이블 -->
+    <div class="overflow-x-auto pt-2">
+      <table class="w-full text-left text-xs sm:text-sm sheet-grid border-collapse">
+        <thead>
+          <tr class="bg-slate-100 text-slate-700 font-semibold">
+            <th class="p-2.5 w-1/4" id="thPeriodLabel">기간 (연도 및 월)</th>
+            <th class="p-2.5 w-1/4 text-right text-blue-700">총 수입</th>
+            <th class="p-2.5 w-1/4 text-right text-rose-700">총 비용</th>
+            <th class="p-2.5 w-1/4 text-right text-slate-800">순수익 (손익)</th>
+          </tr>
+        </thead>
+        <tbody id="summaryTableBody" class="divide-y divide-slate-200">
+          <!-- 집계 행 동적 생성 -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- [3] 거래 내역 원장 리스트 (상세 내역 및 삭제 기능) -->
+  <section class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+    <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-50/50">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+          <i class="fa-solid fa-table"></i>
+        </div>
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-slate-900">거래 내역 원장</h2>
+          <p class="text-xs text-slate-500">누적된 거래 목록 (잘못 입력된 항목은 우측 [삭제] 버튼으로 즉시 정리 가능)</p>
+        </div>
+      </div>
+
+      <!-- 검색 필터 및 액션 버튼 -->
+      <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <div class="relative flex-1 sm:w-44">
+          <input type="text" id="searchFilter" oninput="renderTable()" placeholder="항목명/비고 검색..." class="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+          <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+        </div>
+        <select id="typeFilter" onchange="renderTable()" class="px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-1 focus:ring-emerald-500 focus:outline-none">
+          <option value="ALL">전체 보기</option>
+          <option value="income">수입만</option>
+          <option value="expense">비용만</option>
+        </select>
+        <button onclick="copyTableForGoogleSheets()" class="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg flex items-center gap-1 transition">
+          <i class="fa-solid fa-copy"></i>
+          <span>시트 복사</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 원장 테이블 -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs sm:text-sm sheet-grid border-collapse">
+        <thead>
+          <tr class="bg-slate-100 text-slate-700 font-semibold">
+            <th class="p-2.5 w-12 text-center">No</th>
+            <th class="p-2.5 w-24">날짜</th>
+            <th class="p-2.5 w-16 text-center">구분</th>
+            <th class="p-2.5 w-28">카테고리</th>
+            <th class="p-2.5">항목 내용</th>
+            <th class="p-2.5 w-28 text-right text-rose-700">비용 금액</th>
+            <th class="p-2.5 w-28 text-right text-blue-700">수입 금액</th>
+            <th class="p-2.5">비고 / 메모</th>
+            <th class="p-2.5 w-16 text-center text-rose-600">삭제</th>
+          </tr>
+        </thead>
+        <tbody id="ledgerTableBody" class="divide-y divide-slate-200">
+          <!-- 동적 행 -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 빈 상태 안내 -->
+    <div id="emptyLedgerNotice" class="hidden p-10 text-center text-slate-400">
+      <i class="fa-regular fa-folder-open text-3xl mb-2 text-slate-300"></i>
+      <p class="text-xs sm:text-sm font-medium">등록된 거래 내역이 없습니다.</p>
+    </div>
+  </section>
+
+  <!-- [4] 누적 데이터 맨 밑 간단 요약 바 -->
+  <section class="bg-slate-900 text-white rounded-2xl p-5 shadow-lg">
+    <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-calculator text-emerald-400 text-sm"></i>
+        <h3 class="text-xs sm:text-sm font-bold tracking-wide">누적 데이터 총합 정리</h3>
+      </div>
+      <span class="text-[11px] text-slate-400">전체 누적 집계</span>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
+      <!-- 총 누적 수입 -->
+      <div class="pt-2 sm:pt-0 sm:px-3">
+        <span class="text-[11px] text-slate-400 block font-medium">총 누적 수입</span>
+        <div id="statTotalIncome" class="text-base sm:text-xl font-bold text-blue-400 mt-1">₩ 0</div>
+      </div>
+      <!-- 총 누적 비용 -->
+      <div class="pt-2 sm:pt-0 sm:px-3">
+        <span class="text-[11px] text-slate-400 block font-medium">총 누적 비용</span>
+        <div id="statTotalExpense" class="text-base sm:text-xl font-bold text-rose-400 mt-1">₩ 0</div>
+      </div>
+      <!-- 최종 누적 순익 -->
+      <div class="pt-2 sm:pt-0 sm:px-3">
+        <span class="text-[11px] text-slate-400 block font-medium">최종 누적 순이익</span>
+        <div id="statNetProfit" class="text-base sm:text-xl font-bold text-emerald-400 mt-1">₩ 0</div>
+      </div>
+      <!-- 전체 거래 건수 -->
+      <div class="pt-2 sm:pt-0 sm:px-3">
+        <span class="text-[11px] text-slate-400 block font-medium">전체 거래 건수</span>
+        <div id="statTotalRecords" class="text-base sm:text-xl font-bold text-slate-200 mt-1">0 건</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- [모달 1] 구글 드라이브(스프레드시트) 실시간 연동 모달 창 -->
+<div id="syncModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6">
+    <div class="flex justify-between items-center border-b border-slate-200 pb-3 mb-4">
+      <div class="flex items-center gap-2 text-emerald-700">
+        <i class="fa-brands fa-google-drive text-xl"></i>
+        <h3 class="text-base sm:text-lg font-bold">내 구글 드라이브(구글 시트) 실시간 자동 저장 설정</h3>
+      </div>
+      <button onclick="closeSyncModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="space-y-4 text-xs sm:text-sm text-slate-700 leading-relaxed">
+      <p class="text-slate-600">
+        구글 드라이브에 만든 구글 시트에 <strong>무료 스크립트(Apps Script)</strong>를 1회 배포하고 URL을 등록하면, 웹사이트에서 입력 또는 삭제할 때마다 내 구글 시트에 실시간 반영됩니다.
+      </p>
+
+      <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+        <label class="block font-bold text-slate-900">
+          구글 웹 앱 배포 URL (Web App URL)
+        </label>
+        <input type="url" id="googleScriptUrl" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3.5 py-2.5 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono">
+        <p class="text-[11px] text-slate-500">※ URL을 입력하고 [연동 저장]을 누르면 즉시 실시간 동기화가 시작됩니다.</p>
+      </div>
+
+      <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200 space-y-2">
+        <div class="flex justify-between items-center">
+          <h4 class="font-bold text-emerald-900 flex items-center gap-1.5">
+            <i class="fa-solid fa-code"></i> 구글 시트에 붙여넣을 스크립트 코드 (입력 & 삭제 & 조회 지원)
+          </h4>
+          <button onclick="copyAppsScriptCode()" class="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[11px] font-bold transition">
+            코드 복사
+          </button>
+        </div>
+        <p class="text-xs text-emerald-800">
+          구글 시트 상단 메뉴 <strong>[확장 프로그램] → [Apps Script]</strong>를 누른 후 기존 코드를 지우고 아래 코드를 붙여넣은 뒤, <strong>[배포] → [새 배포] → 웹 앱 (액세스 권한: 모든 사용자)</strong>으로 배포하세요.
+        </p>
+        <pre id="appsScriptCode" class="bg-slate-900 text-emerald-300 p-3 rounded-lg font-mono text-[11px] overflow-x-auto select-all leading-relaxed">
+function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var rows = sheet.getDataRange().getValues();
+  var records = [];
+  for (var i = 1; i < rows.length; i++) {
+    if (rows[i][0]) {
+      records.push({
+        id: rows[i][0],
+        date: formatDate(rows[i][1]),
+        type: rows[i][2] === '수입' ? 'income' : 'expense',
+        category: rows[i][3] || '',
+        title: rows[i][4] || '',
+        expenseAmount: Number(rows[i][5]) || 0,
+        incomeAmount: Number(rows[i][6]) || 0,
+        note: rows[i][7] || ''
+      });
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify(records))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["ID", "날짜", "구분", "카테고리", "항목내용", "비용금액", "수입금액", "비고", "등록일시"]);
+  }
+
+  if (data.action === 'delete') {
+    var values = sheet.getDataRange().getValues();
+    for (var i = values.length - 1; i >= 1; i--) {
+      if (String(values[i][0]) === String(data.id)) {
+        sheet.deleteRow(i + 1);
+        break;
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({status: 'deleted'}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  sheet.appendRow([
+    data.id,
+    data.date,
+    data.type === 'income' ? '수입' : '비용',
+    data.category,
+    data.title,
+    data.expenseAmount,
+    data.incomeAmount,
+    data.note,
+    new Date()
+  ]);
+
+  return ContentService.createTextOutput(JSON.stringify({status: 'success'}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function formatDate(val) {
+  if (val instanceof Date) {
+    var y = val.getFullYear();
+    var m = ('0' + (val.getMonth() + 1)).slice(-2);
+    var d = ('0' + val.getDate()).slice(-2);
+    return y + '-' + m + '-' + d;
+  }
+  return String(val);
+}
+</pre>
+      </div>
+    </div>
+
+    <div class="mt-6 flex justify-end gap-2">
+      <button onclick="closeSyncModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs sm:text-sm font-semibold transition">닫기</button>
+      <button onclick="saveSyncUrl()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-semibold shadow-md transition">구글 드라이브 연동 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- [모달 2] 모바일 접속 QR 코드 모달 -->
+<div id="qrModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-6 text-center space-y-4">
+    <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+      <div class="flex items-center gap-2 text-emerald-700">
+        <i class="fa-solid fa-qrcode text-lg"></i>
+        <h3 class="text-base font-bold text-slate-900">모바일 입력 접속용 QR 코드</h3>
+      </div>
+      <button onclick="closeQrModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="flex justify-center p-3 bg-slate-50 rounded-xl border border-slate-200">
+      <div id="qrcodeCanvas"></div>
+    </div>
+    <p class="text-xs text-slate-600 leading-relaxed">
+      스마트폰 카메라로 위 QR 코드를 비추면 현장이나 외근 중에도 즉시 비용·수입을 입력할 수 있습니다.
+    </p>
+    <div class="space-y-2">
+      <button onclick="copyCurrentUrl()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
+        <i class="fa-solid fa-link"></i> 현재 접속 링크 복사하기
+      </button>
+      <button onclick="printQrCard()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5">
+        <i class="fa-solid fa-print"></i> 현장 비치용 인쇄하기
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- [모달 3] 삭제 확인 전용 모달 -->
+<div id="deleteConfirmModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl p-6 text-center space-y-4">
+    <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-xl">
+      <i class="fa-solid fa-trash-can"></i>
+    </div>
+    <div>
+      <h3 class="text-base font-bold text-slate-900">거래 내역 삭제</h3>
+      <p id="deleteModalMessage" class="text-xs text-slate-500 mt-1.5 leading-relaxed">
+        선택한 항목을 장부에서 삭제하시겠습니까?<br>삭제된 내역은 집계 및 결산에서 즉시 제외됩니다.
+      </p>
+    </div>
+    <div class="flex gap-2 pt-2">
+      <button onclick="closeDeleteModal()" class="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
+        취소
+      </button>
+      <button id="btnConfirmDelete" onclick="executeDeleteRecord()" class="w-1/2 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-md shadow-rose-200 transition">
+        삭제하기
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- [모달 4] GitHub 무료 배포 가이드 모달 -->
+<div id="githubGuideModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-4">
+    <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+      <div class="flex items-center gap-2 text-slate-900">
+        <i class="fa-brands fa-github text-2xl"></i>
+        <h3 class="text-base font-bold">GitHub Pages로 전 세계 무료 배포하기</h3>
+      </div>
+      <button onclick="closeGithubGuideModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="space-y-3 text-xs text-slate-600 leading-relaxed">
+      <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+        <p class="font-bold text-slate-800 text-sm mb-1">1. 파일 이름 저장</p>
+        <p>현재 코드를 컴퓨터에 저장할 때 반드시 <code class="bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-mono font-bold">index.html</code> 로 저장하세요.</p>
+      </div>
+
+      <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+        <p class="font-bold text-slate-800 text-sm mb-1">2. GitHub Repository 생성</p>
+        <p>GitHub 로그인 → <strong>[New repository]</strong> → 저장소명(예: <code class="font-bold">ledger</code>) 입력 후 <strong>Public</strong> 선택하고 생성합니다.</p>
+      </div>
+
+      <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+        <p class="font-bold text-slate-800 text-sm mb-1">3. 파일 업로드 및 Pages 활성화</p>
+        <p>저장소에 <code class="font-bold">index.html</code> 파일을 업로드한 뒤, 저장소 상단 <strong>[Settings] → [Pages]</strong> 로 이동합니다. <strong>Branch</strong>를 <code class="font-bold">main</code>으로 바꾸고 <strong>Save</strong>를 누르면 끝납니다.</p>
+      </div>
+
+      <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-900">
+        <p class="font-bold mb-1"><i class="fa-solid fa-circle-check text-emerald-600"></i> 생성되는 웹 주소</p>
+        <p class="font-mono text-xs">https://[내아이디].github.io/ledger/</p>
+        <p class="mt-1 text-[11px] text-emerald-700">이 주소를 QR 코드로 만들어 직원들에게 나눠주면 어디서나 입력이 가능해집니다!</p>
+      </div>
+    </div>
+
+    <div class="pt-2 flex justify-end">
+      <button onclick="closeGithubGuideModal()" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition">
+        확인 완료
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- [알림 토스트 메시지] -->
+<div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white px-4 py-3 rounded-xl text-sm shadow-xl flex items-center gap-2 transform translate-y-24 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+  <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+  <span id="toastMsg">작업이 완료되었습니다.</span>
+</div>
+
+<script>
+let currentType = 'expense';
+let currentTab = 'month'; // 기본 탭: 월별
+let chartInstance = null;
+let googleWebhookUrl = '';
+let targetDeleteId = null;
+
+// 카테고리 정의
+const categories = {
+  expense: ['임대료/관리비', '인건비/급여', '원자재/재료비', '서버/소프트웨어', '마케팅/광고', '사무용품/소모품', '통신/공과금', '식대/복리후생', '기타비용'],
+  income: ['상품매출', '서비스매출', '프로젝트수수료', '정부지원금', '이자/기타수입']
+};
+
+// 초기 샘플 데이터
+let ledgerData = [
+  { id: 1725235200001, date: '2026-08-15', type: 'income', category: '상품매출', title: '8월 여름 프로모션 매출 정산', expenseAmount: 0, incomeAmount: 4200000, note: '온라인 결제대행사' },
+  { id: 1725235200002, date: '2026-08-20', type: 'expense', category: '마케팅/광고', title: 'SNS 타겟 광고 집행비', expenseAmount: 900000, incomeAmount: 0, note: '법인카드' },
+  { id: 1725235200003, date: '2026-09-02', type: 'income', category: '상품매출', title: '9월 1차 온라인 스토어 정산', expenseAmount: 0, incomeAmount: 3850000, note: 'PG사 입금 완료' },
+  { id: 1725235200004, date: '2026-09-05', type: 'expense', category: '임대료/관리비', title: '사무실 9월 임대료 및 관리비', expenseAmount: 1200000, incomeAmount: 0, note: '세금계산서 수취' },
+  { id: 1725235200005, date: '2026-09-11', type: 'expense', category: '서버/소프트웨어', title: '클라우드 인프라 호스팅 비용', expenseAmount: 430000, incomeAmount: 0, note: '법인카드 결제' },
+  { id: 1725235200006, date: '2026-09-18', type: 'income', category: '서비스매출', title: '기업 컨설팅 계약 착수금', expenseAmount: 0, incomeAmount: 2500000, note: '계좌 이체 수령' },
+  { id: 1725235200007, date: '2026-10-02', type: 'income', category: '상품매출', title: '10월 1차 매출 정산금', expenseAmount: 0, incomeAmount: 4100000, note: 'PG사 정산' },
+  { id: 1725235200008, date: '2026-10-05', type: 'expense', category: '임대료/관리비', title: '사무실 10월 임대료', expenseAmount: 1200000, incomeAmount: 0, note: '정기 이체' }
+];
+
+function setType(type) {
+  currentType = type;
+  const btnExpense = document.getElementById('btnTypeExpense');
+  const btnIncome = document.getElementById('btnTypeIncome');
+  const lblItemTitle = document.getElementById('lblItemTitle');
+  const lblAmountTitle = document.getElementById('lblAmountTitle');
+  const inputTitle = document.getElementById('inputTitle');
+
+  if (type === 'expense') {
+    btnExpense.className = "py-2 px-2 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1 bg-rose-50 border-rose-300 text-rose-700 ring-2 ring-rose-400";
+    btnIncome.className = "py-2 px-2 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1 bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100";
+    lblItemTitle.innerHTML = '비용 아이템명 <span class="text-rose-500">*</span>';
+    lblAmountTitle.innerHTML = '비용 금액 (원) <span class="text-rose-500">*</span>';
+    inputTitle.placeholder = '예: 서버 호스팅비, 사무실 임대료, 소모품비';
+  } else {
+    btnIncome.className = "py-2 px-2 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1 bg-blue-50 border-blue-300 text-blue-700 ring-2 ring-blue-400";
+    btnExpense.className = "py-2 px-2 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1 bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100";
+    lblItemTitle.innerHTML = '수입 내용 <span class="text-blue-500">*</span>';
+    lblAmountTitle.innerHTML = '수입 금액 (원) <span class="text-blue-500">*</span>';
+    inputTitle.placeholder = '예: 10월 매출 정산금, 서비스 컨설팅 수수료';
+  }
+
+  updateCategoryOptions();
+}
+
+function updateCategoryOptions() {
+  const catSelect = document.getElementById('inputCategory');
+  catSelect.innerHTML = '';
+  categories[currentType].forEach(cat => {
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    catSelect.appendChild(opt);
+  });
+}
+
+async function handleFormSubmit(event) {
+  event.preventDefault();
+  const dateVal = document.getElementById('inputDate').value;
+  const titleVal = document.getElementById('inputTitle').value.trim();
+  const amountVal = parseInt(document.getElementById('inputAmount').value, 10);
+  const categoryVal = document.getElementById('inputCategory').value;
+  const noteVal = document.getElementById('inputNote').value.trim();
+
+  if (!dateVal || !titleVal || isNaN(amountVal) || amountVal <= 0) {
+    showToast('날짜와 올바른 금액, 항목명을 모두 입력해 주세요.', 'error');
+    return;
+  }
+
+  const newEntry = {
+    id: Date.now(),
+    date: dateVal,
+    type: currentType,
+    category: categoryVal,
+    title: titleVal,
+    expenseAmount: currentType === 'expense' ? amountVal : 0,
+    incomeAmount: currentType === 'income' ? amountVal : 0,
+    note: noteVal || '-'
+  };
+
+  const submitBtn = document.getElementById('submitBtn');
+  const submitBtnText = document.getElementById('submitBtnText');
+
+  ledgerData.unshift(newEntry);
+  refreshAll();
+
+  if (googleWebhookUrl) {
+    submitBtn.disabled = true;
+    submitBtnText.innerText = '구글 드라이브 저장 중...';
+
+    try {
+      await fetch(googleWebhookUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newEntry)
+      });
+      showToast('구글 드라이브 시트에 실시간 전송 및 누적되었습니다!');
+    } catch (err) {
+      console.error('Google Sheets Sync Error:', err);
+      showToast('구글 드라이브 전송 중 오류가 발생했습니다. (웹 화면에는 기록됨)', 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtnText.innerText = '입력하기 (구글 시트 저장)';
+    }
+  } else {
+    showToast(`${currentType === 'expense' ? '비용' : '수입'} 내역이 등록되었습니다.`);
+  }
+
+  document.getElementById('inputTitle').value = '';
+  document.getElementById('inputAmount').value = '';
+  document.getElementById('inputNote').value = '';
+}
+
+async function fetchSheetData() {
+  if (!googleWebhookUrl) {
+    showToast('구글 드라이브 연동 URL을 먼저 등록해주세요.', 'info');
+    openSyncModal();
+    return;
+  }
+
+  const icon = document.getElementById('iconSyncRefresh');
+  if (icon) icon.classList.add('fa-spin');
+
+  try {
+    const res = await fetch(googleWebhookUrl);
+    if (!res.ok) throw new Error('구글 시트 응답 실패');
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) {
+      ledgerData = data.reverse();
+      refreshAll();
+      showToast('구글 드라이브 시트의 최신 데이터를 동기화했습니다!');
+    } else {
+      showToast('구글 시트에 저장된 거래 내역이 아직 없습니다.', 'info');
+    }
+  } catch (err) {
+    console.error('Fetch Sheets error:', err);
+    showToast('구글 시트 동기화 중 확인이 필요합니다 (직전 로컬 데이터 유지)', 'error');
+  } finally {
+    if (icon) icon.classList.remove('fa-spin');
+  }
+}
+
+function confirmDelete(id) {
+  targetDeleteId = id;
+  const targetItem = ledgerData.find(item => item.id === id);
+  const msgEl = document.getElementById('deleteModalMessage');
+  if (targetItem) {
+    msgEl.innerHTML = `<strong>[${targetItem.date}] ${targetItem.title}</strong><br>해당 거래 내역을 장부에서 영구 삭제하시겠습니까?`;
+  }
+  document.getElementById('deleteConfirmModal').classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+  targetDeleteId = null;
+  document.getElementById('deleteConfirmModal').classList.add('hidden');
+}
+
+async function executeDeleteRecord() {
+  if (!targetDeleteId) return;
+
+  const deletedId = targetDeleteId;
+  ledgerData = ledgerData.filter(item => item.id !== deletedId);
+  closeDeleteModal();
+  refreshAll();
+
+  if (googleWebhookUrl) {
+    try {
+      await fetch(googleWebhookUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id: deletedId })
+      });
+      showToast('구글 드라이브 시트에서도 해당 거래가 실시간 삭제되었습니다.');
+    } catch (err) {
+      console.error('Delete sync error:', err);
+    }
+  } else {
+    showToast('해당 거래 내역이 성공적으로 삭제되었습니다.', 'info');
+  }
+}
+
+function formatCurrency(val) {
+  return '₩ ' + Number(val).toLocaleString('ko-KR');
+}
+
+function calculateTotals() {
+  let totalIncome = 0;
+  let totalExpense = 0;
+
+  ledgerData.forEach(item => {
+    totalIncome += item.incomeAmount;
+    totalExpense += item.expenseAmount;
+  });
+
+  const net = totalIncome - totalExpense;
+
+  document.getElementById('statTotalIncome').innerText = formatCurrency(totalIncome);
+  document.getElementById('statTotalExpense').innerText = formatCurrency(totalExpense);
+  const netEl = document.getElementById('statNetProfit');
+  netEl.innerText = formatCurrency(net);
+  if (net > 0) {
+    netEl.className = 'text-base sm:text-xl font-bold text-emerald-400 mt-1';
+  } else if (net < 0) {
+    netEl.className = 'text-base sm:text-xl font-bold text-rose-400 mt-1';
+  } else {
+    netEl.className = 'text-base sm:text-xl font-bold text-slate-200 mt-1';
+  }
+  document.getElementById('statTotalRecords').innerText = ledgerData.length + ' 건';
+}
+
+function getPeriodKey(dateStr, periodType) {
+  const d = new Date(dateStr);
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+
+  if (periodType === 'month') {
+    return `${year}년 ${String(month).padStart(2, '0')}월`;
+  } else if (periodType === 'quarter') {
+    const quarter = Math.ceil(month / 3);
+    return `${year}년 ${quarter}분기 (Q${quarter})`;
+  }
+  return dateStr;
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  const btnMonth = document.getElementById('tabBtnMonth');
+  const btnQuarter = document.getElementById('tabBtnQuarter');
+  const thLabel = document.getElementById('thPeriodLabel');
+
+  [btnMonth, btnQuarter].forEach(b => {
+    b.className = "px-4 py-1.5 rounded-lg hover:text-slate-900 transition";
+  });
+
+  if (tab === 'month') {
+    btnMonth.className = "px-4 py-1.5 rounded-lg bg-white shadow-xs text-emerald-700 font-bold transition";
+    thLabel.innerText = "기간 (연도 및 월)";
+  } else if (tab === 'quarter') {
+    btnQuarter.className = "px-4 py-1.5 rounded-lg bg-white shadow-xs text-emerald-700 font-bold transition";
+    thLabel.innerText = "기간 (연도 및 분기)";
+  }
+
+  renderSummaryTableAndChart();
+}
+
+function renderSummaryTableAndChart() {
+  const groups = {};
+
+  ledgerData.forEach(item => {
+    const key = getPeriodKey(item.date, currentTab);
+    if (!groups[key]) {
+      groups[key] = { income: 0, expense: 0 };
+    }
+    groups[key].income += item.incomeAmount;
+    groups[key].expense += item.expenseAmount;
+  });
+
+  const sortedKeys = Object.keys(groups).sort();
+  const tbody = document.getElementById('summaryTableBody');
+  tbody.innerHTML = '';
+
+  if (sortedKeys.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">집계할 데이터가 없습니다.</td></tr>`;
+    updateChart([], [], []);
+    return;
+  }
+
+  const chartLabels = [];
+  const chartIncomes = [];
+  const chartExpenses = [];
+
+  sortedKeys.forEach(key => {
+    const data = groups[key];
+    const profit = data.income - data.expense;
+    const profitColor = profit > 0 ? 'text-emerald-600' : (profit < 0 ? 'text-rose-600' : 'text-slate-600');
+
+    chartLabels.push(key);
+    chartIncomes.push(data.income);
+    chartExpenses.push(data.expense);
+
+    const row = document.createElement('tr');
+    row.className = "hover:bg-slate-50";
+    row.innerHTML = `
+      <td class="p-2.5 font-semibold text-slate-800">${key}</td>
+      <td class="p-2.5 text-right font-medium text-blue-600">${Number(data.income).toLocaleString()} 원</td>
+      <td class="p-2.5 text-right font-medium text-rose-600">${Number(data.expense).toLocaleString()} 원</td>
+      <td class="p-2.5 text-right font-bold ${profitColor}">${Number(profit).toLocaleString()} 원</td>
+    `;
+    tbody.appendChild(row);
+  });
+
+  updateChart(chartLabels, chartIncomes, chartExpenses);
+}
+
+function updateChart(labels, incomes, expenses) {
+  const ctx = document.getElementById('summaryChart').getContext('2d');
+
+  if (chartInstance) {
+    chartInstance.destroy();
+  }
+
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: '수입 (Income)',
+          data: incomes,
+          backgroundColor: 'rgba(37, 99, 235, 0.75)',
+          borderRadius: 6
+        },
+        {
+          label: '비용 (Expense)',
+          data: expenses,
+          backgroundColor: 'rgba(225, 29, 72, 0.75)',
+          borderRadius: 6
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { font: { family: 'Pretendard', size: 12 } } },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `${context.dataset.label}: ₩ ${Number(context.raw).toLocaleString()}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: {
+          ticks: {
+            callback: function(value) {
+              return '₩' + (value >= 1000000 ? (value / 1000000) + 'M' : Number(value).toLocaleString());
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderTable() {
+  const tbody = document.getElementById('ledgerTableBody');
+  const emptyNotice = document.getElementById('emptyLedgerNotice');
+  const search = document.getElementById('searchFilter').value.toLowerCase();
+  const typeFilter = document.getElementById('typeFilter').value;
+
+  tbody.innerHTML = '';
+
+  const filtered = ledgerData.filter(item => {
+    const matchSearch = item.title.toLowerCase().includes(search) || (item.note && item.note.toLowerCase().includes(search)) || item.category.toLowerCase().includes(search);
+    const matchType = typeFilter === 'ALL' || item.type === typeFilter;
+    return matchSearch && matchType;
+  });
+
+  if (filtered.length === 0) {
+    emptyNotice.classList.remove('hidden');
+    return;
+  }
+  emptyNotice.classList.add('hidden');
+
+  filtered.forEach((item, index) => {
+    const isIncome = item.type === 'income';
+    const typeBadge = isIncome
+      ? `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">수입</span>`
+      : `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">비용</span>`;
+
+    const row = document.createElement('tr');
+    row.className = "hover:bg-slate-50 transition";
+    row.innerHTML = `
+      <td class="p-2.5 text-center text-slate-400">${index + 1}</td>
+      <td class="p-2.5 font-medium text-slate-700 whitespace-nowrap">${item.date}</td>
+      <td class="p-2.5 text-center">${typeBadge}</td>
+      <td class="p-2.5 text-slate-600 whitespace-nowrap"><span class="bg-slate-100 px-2 py-0.5 rounded text-xs">${item.category}</span></td>
+      <td class="p-2.5 font-semibold text-slate-900">${item.title}</td>
+      <td class="p-2.5 text-right font-medium text-rose-600">${item.expenseAmount > 0 ? Number(item.expenseAmount).toLocaleString() + ' 원' : '-'}</td>
+      <td class="p-2.5 text-right font-medium text-blue-600">${item.incomeAmount > 0 ? Number(item.incomeAmount).toLocaleString() + ' 원' : '-'}</td>
+      <td class="p-2.5 text-slate-500 text-xs">${item.note || '-'}</td>
+      <td class="p-2.5 text-center">
+        <button onclick="confirmDelete(${item.id})" class="px-2 py-1 text-xs font-medium text-rose-600 hover:text-white hover:bg-rose-600 border border-rose-200 rounded-lg transition inline-flex items-center gap-1" title="잘못 입력된 거래 삭제">
+          <i class="fa-regular fa-trash-can"></i>
+          <span>삭제</span>
+        </button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+function openSyncModal() {
+  document.getElementById('googleScriptUrl').value = googleWebhookUrl;
+  document.getElementById('syncModal').classList.remove('hidden');
+}
+
+function closeSyncModal() {
+  document.getElementById('syncModal').classList.add('hidden');
+}
+
+function saveSyncUrl() {
+  const url = document.getElementById('googleScriptUrl').value.trim();
+  googleWebhookUrl = url;
+
+  const headerBadge = document.getElementById('headerSyncStatus');
+  const alertBanner = document.getElementById('driveAlertBanner');
+
+  if (url) {
+    headerBadge.className = "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800";
+    headerBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 구글 드라이브 실시간 연동 활성화`;
+    alertBanner.classList.add('hidden');
+    showToast('구글 드라이브(구글 시트) 연동이 정상 활성화되었습니다!');
+  } else {
+    headerBadge.className = "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700";
+    headerBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> 드라이브 미연결 (로컬 모드)`;
+    alertBanner.classList.remove('hidden');
+    showToast('구글 드라이브 연동 주소가 비워졌습니다.', 'info');
+  }
+
+  closeSyncModal();
+}
+
+function copyAppsScriptCode() {
+  const code = document.getElementById('appsScriptCode').innerText;
+  copyText(code);
+  showToast('구글 스크립트 코드가 복사되었습니다! 구글 시트 편집창에 붙여넣으세요.');
+}
+
+function openQrModal() {
+  const container = document.getElementById('qrcodeCanvas');
+  container.innerHTML = '';
+  const currentUrl = window.location.href;
+  new QRCode(container, {
+    text: currentUrl,
+    width: 150,
+    height: 150,
+    colorDark: "#0f172a",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.M
+  });
+  document.getElementById('qrModal').classList.remove('hidden');
+}
+
+function closeQrModal() {
+  document.getElementById('qrModal').classList.add('hidden');
+}
+
+function openGithubGuideModal() {
+  document.getElementById('githubGuideModal').classList.remove('hidden');
+}
+
+function closeGithubGuideModal() {
+  document.getElementById('githubGuideModal').classList.add('hidden');
+}
+
+function printQrCard() {
+  window.print();
+}
+
+function copyCurrentUrl() {
+  copyText(window.location.href);
+  showToast('웹사이트 접속 링크가 복사되었습니다!');
+}
+
+function exportToCSV() {
+  if (ledgerData.length === 0) {
+    showToast('내보낼 데이터가 없습니다.', 'error');
+    return;
+  }
+
+  let csvContent = '\uFEFF날짜,구분,카테고리,항목내용,비용금액,수입금액,비고\n';
+  ledgerData.forEach(item => {
+    const typeLabel = item.type === 'income' ? '수입' : '비용';
+    csvContent += `"${item.date}","${typeLabel}","${item.category}","${item.title.replace(/"/g, '""')}","${item.expenseAmount}","${item.incomeAmount}","${(item.note || '').replace(/"/g, '""')}"\n`;
+  });
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `사업체_비용수입정리부_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast('CSV 백업 파일이 다운로드되었습니다.');
+}
+
+function copyTableForGoogleSheets() {
+  if (ledgerData.length === 0) {
+    showToast('복사할 데이터가 없습니다.', 'error');
+    return;
+  }
+
+  let tsvContent = '날짜\t구분\t카테고리\t항목내용\t비용금액\t수입금액\t비고\n';
+  ledgerData.forEach(item => {
+    const typeLabel = item.type === 'income' ? '수입' : '비용';
+    tsvContent += `${item.date}\t${typeLabel}\t${item.category}\t${item.title}\t${item.expenseAmount}\t${item.incomeAmount}\t${item.note || ''}\n`;
+  });
+
+  copyText(tsvContent);
+  showToast('구글 시트에 바로 붙여넣기(Ctrl+V) 가능한 형식으로 복사되었습니다!');
+}
+
+function copyText(text) {
+  const tempTextArea = document.createElement('textarea');
+  tempTextArea.value = text;
+  document.body.appendChild(tempTextArea);
+  tempTextArea.select();
+  try {
+    document.execCommand('copy');
+  } catch (err) {
+    console.error('Copy failed', err);
+  }
+  document.body.removeChild(tempTextArea);
+}
+
+function showToast(msg, type = 'success') {
+  const toast = document.getElementById('toast');
+  const toastMsg = document.getElementById('toastMsg');
+  const toastIcon = document.getElementById('toastIcon');
+
+  toastMsg.innerText = msg;
+  if (type === 'error') {
+    toastIcon.className = "fa-solid fa-circle-exclamation text-rose-400";
+  } else if (type === 'info') {
+    toastIcon.className = "fa-solid fa-circle-info text-blue-400";
+  } else {
+    toastIcon.className = "fa-solid fa-circle-check text-emerald-400";
+  }
+
+  toast.classList.remove('translate-y-24', 'opacity-0');
+  setTimeout(() => {
+    toast.classList.add('translate-y-24', 'opacity-0');
+  }, 3000);
+}
+
+function refreshAll() {
+  calculateTotals();
+  renderSummaryTableAndChart();
+  renderTable();
+}
+
+window.onload = function() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('inputDate').value = today;
+  setType('expense');
+  switchTab('month');
+  refreshAll();
+};
+</script>
+</body>
+</html>
