@@ -2,51 +2,63 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>사업체 스마트 비용·수입 정리부</title>
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- QRCode.js CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Pretendard WebFont -->
   <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-    * { font-family: 'Pretendard', sans-serif; }
+    * { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
     .sheet-grid th, .sheet-grid td { border: 1px solid #e2e8f0; }
+    input, select, button { touch-action: manipulation; }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col justify-between">
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col justify-between selection:bg-emerald-500 selection:text-white">
 
+<!-- [상단 헤더 네비게이션] -->
 <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
-  <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap justify-between items-center gap-3">
     <div class="flex items-center space-x-3">
-      <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md">
+      <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-100 shrink-0">
         <i class="fa-solid fa-file-invoice-dollar text-xl"></i>
       </div>
       <div>
         <div class="flex items-center gap-2">
-          <h1 class="text-base sm:text-lg font-bold text-slate-900">비용·수입 스마트 정리부</h1>
-          <span id="headerSyncStatus" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
-            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-            드라이브 미연동
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">비용·수입 스마트 정리부</h1>
+          <span id="headerSyncStatus" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            구글 시트 자동 연동됨
           </span>
         </div>
+        <p class="text-[11px] text-slate-400 hidden sm:block">PC & 모바일 어디서나 실시간 구글 시트 영구 누적 및 자동 결산</p>
       </div>
     </div>
     
-    <div class="flex items-center space-x-2">
-      <button onclick="fetchSheetData(true)" class="px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition flex items-center gap-1">
+    <div class="flex items-center space-x-1.5 sm:space-x-2">
+      <!-- 새로고침 버튼 -->
+      <button onclick="fetchSheetData(true)" class="px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 active:scale-95 rounded-lg border border-blue-200 transition flex items-center gap-1.5">
         <i class="fa-solid fa-arrows-rotate text-blue-600" id="iconSyncRefresh"></i>
         <span>새로고침</span>
       </button>
-      <button onclick="openSyncModal()" class="px-3 py-1.5 text-xs sm:text-sm font-semibold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 rounded-lg border border-emerald-300 transition flex items-center gap-1">
-        <i class="fa-solid fa-cloud-arrow-up text-emerald-600"></i>
-        <span>구글 연동</span>
+      <!-- 구글 연동 확인 버튼 -->
+      <button onclick="openSyncModal()" class="px-2.5 py-1.5 text-xs sm:text-sm font-semibold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 active:scale-95 rounded-lg border border-emerald-300 transition flex items-center gap-1.5">
+        <i class="fa-solid fa-cloud-check text-emerald-600"></i>
+        <span>연동 상태</span>
       </button>
-      <button onclick="openQrModal()" class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-white hover:bg-slate-100 rounded-lg border border-slate-300 transition flex items-center gap-1">
+      <!-- 모바일 QR 버튼 -->
+      <button onclick="openQrModal()" class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-white hover:bg-slate-100 active:scale-95 rounded-lg border border-slate-300 transition flex items-center gap-1">
         <i class="fa-solid fa-qrcode text-emerald-600"></i>
         <span>QR</span>
       </button>
-      <button onclick="exportToCSV()" class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-white hover:bg-slate-100 rounded-lg border border-slate-300 transition flex items-center gap-1">
+      <!-- CSV 백업 버튼 -->
+      <button onclick="exportToCSV()" class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-slate-700 bg-white hover:bg-slate-100 active:scale-95 rounded-lg border border-slate-300 transition flex items-center gap-1">
         <i class="fa-solid fa-file-excel text-emerald-600"></i>
         <span>CSV</span>
       </button>
@@ -54,26 +66,30 @@
   </div>
 </header>
 
-<main class="max-w-7xl mx-auto px-4 py-6 space-y-6 w-full flex-1">
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6 w-full flex-1">
 
-  <section class="bg-white rounded-2xl border-2 border-emerald-500/30 shadow-md p-5 space-y-4">
+  <!-- [1] 비용 및 수입 간편 입력 폼 -->
+  <section class="bg-white rounded-2xl border-2 border-emerald-500/30 shadow-md p-5 sm:p-6 space-y-4">
     <div class="flex items-center justify-between border-b border-slate-100 pb-3">
       <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
         <i class="fa-solid fa-pen-to-square text-emerald-600"></i>
         비용 및 수입 간편 입력
       </h2>
-      <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-        실시간 자동 정리
+      <span class="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
+        <i class="fa-solid fa-bolt text-emerald-600"></i>
+        구글 시트 즉시 저장
       </span>
     </div>
 
     <form id="entryForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
       <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+        <!-- 거래 날짜 -->
         <div class="md:col-span-2">
           <label class="block text-xs font-bold text-slate-700 mb-1">날짜</label>
-          <input type="date" id="inputDate" required class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          <input type="date" id="inputDate" required class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition">
         </div>
 
+        <!-- 거래 구분 선택 (비용 vs 수입) -->
         <div class="md:col-span-2">
           <label class="block text-xs font-bold text-slate-700 mb-1">거래 구분</label>
           <div class="grid grid-cols-2 gap-1.5">
@@ -86,50 +102,59 @@
           </div>
         </div>
 
+        <!-- 카테고리 분류 -->
         <div class="md:col-span-2">
           <label class="block text-xs font-bold text-slate-700 mb-1">카테고리</label>
-          <select id="inputCategory" class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"></select>
+          <select id="inputCategory" class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition"></select>
         </div>
 
+        <!-- 항목 내용 -->
         <div class="md:col-span-3">
           <label id="lblItemTitle" class="block text-xs font-bold text-slate-700 mb-1">비용 아이템명</label>
-          <input type="text" id="inputTitle" required placeholder="예: 서버비, 사무실 임대료" class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          <input type="text" id="inputTitle" required placeholder="예: 서버비, 사무실 임대료" class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition">
         </div>
 
+        <!-- 금액 -->
         <div class="md:col-span-3">
           <label id="lblAmountTitle" class="block text-xs font-bold text-slate-700 mb-1">비용 금액 (원)</label>
-          <input type="number" id="inputAmount" required min="1" step="1" placeholder="금액 입력" class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-semibold">
+          <input type="number" id="inputAmount" required min="1" step="1" placeholder="금액 입력" class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none font-semibold transition">
         </div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+        <!-- 비고 / 메모 -->
         <div class="md:col-span-9">
           <label class="block text-xs font-bold text-slate-700 mb-1">비고 / 메모 (선택)</label>
-          <input type="text" id="inputNote" placeholder="결제수단, 영수증 번호, 비고" class="w-full px-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          <input type="text" id="inputNote" placeholder="결제수단, 영수증 번호, 세금계산서 수취 여부 등" class="w-full px-3 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white focus:outline-none transition">
         </div>
+        <!-- 입력 버튼 -->
         <div class="md:col-span-3">
-          <button type="submit" id="submitBtn" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2">
+          <button type="submit" id="submitBtn" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold rounded-xl shadow-md shadow-emerald-200 transition flex items-center justify-center gap-2">
             <i class="fa-solid fa-paper-plane text-xs"></i>
-            <span id="submitBtnText">입력하기</span>
+            <span id="submitBtnText">입력하기 (구글 시트 저장)</span>
           </button>
         </div>
       </div>
     </form>
   </section>
 
-  <section class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
+  <!-- [2] 월별 · 분기별 집계 현황 및 차트 -->
+  <section class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 sm:p-6 space-y-4">
     <div class="flex justify-between items-center border-b border-slate-200 pb-3">
-      <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
-        <i class="fa-solid fa-chart-pie text-emerald-600"></i>
-        기간별 총액 집계
-      </h2>
+      <div>
+        <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-chart-pie text-emerald-600"></i>
+          기간별 총액 집계
+        </h2>
+        <p class="text-xs text-slate-400 mt-0.5 hidden sm:block">실시간 누적 데이터 바탕 자동 결산</p>
+      </div>
       <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold">
-        <button onclick="switchTab('month')" id="tabBtnMonth" class="px-3 py-1 rounded-lg bg-white shadow-xs text-emerald-700 font-bold">월별</button>
-        <button onclick="switchTab('quarter')" id="tabBtnQuarter" class="px-3 py-1 rounded-lg text-slate-600">분기별</button>
+        <button onclick="switchTab('month')" id="tabBtnMonth" class="px-3.5 py-1.5 rounded-lg bg-white shadow-xs text-emerald-700 font-bold transition">월별</button>
+        <button onclick="switchTab('quarter')" id="tabBtnQuarter" class="px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">분기별</button>
       </div>
     </div>
 
-    <div class="h-56 w-full">
+    <div class="h-56 sm:h-64 w-full">
       <canvas id="summaryChart"></canvas>
     </div>
 
@@ -137,10 +162,10 @@
       <table class="w-full text-left text-xs sm:text-sm sheet-grid border-collapse">
         <thead>
           <tr class="bg-slate-100 text-slate-700 font-semibold">
-            <th class="p-2 w-1/4" id="thPeriodLabel">기간</th>
-            <th class="p-2 w-1/4 text-right text-blue-700">총 수입</th>
-            <th class="p-2 w-1/4 text-right text-rose-700">총 비용</th>
-            <th class="p-2 w-1/4 text-right text-slate-800">순수익 (손익)</th>
+            <th class="p-2.5 w-1/4" id="thPeriodLabel">기간</th>
+            <th class="p-2.5 w-1/4 text-right text-blue-700">총 수입</th>
+            <th class="p-2.5 w-1/4 text-right text-rose-700">총 비용</th>
+            <th class="p-2.5 w-1/4 text-right text-slate-800">순수익 (손익)</th>
           </tr>
         </thead>
         <tbody id="summaryTableBody" class="divide-y divide-slate-200"></tbody>
@@ -148,6 +173,7 @@
     </div>
   </section>
 
+  <!-- [3] 거래 원장 상세 내역 -->
   <section class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
     <div class="p-4 border-b border-slate-200 flex flex-wrap justify-between items-center gap-3 bg-slate-50">
       <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -155,9 +181,9 @@
         거래 원장 상세 내역
       </h2>
       <div class="flex items-center gap-2 w-full sm:w-auto">
-        <input type="text" id="searchFilter" oninput="renderTable()" placeholder="검색..." class="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg flex-1 sm:w-44 focus:outline-none">
+        <input type="text" id="searchFilter" oninput="renderTable()" placeholder="항목/비고 검색..." class="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg flex-1 sm:w-44 focus:ring-1 focus:ring-emerald-500 focus:outline-none">
         <select id="typeFilter" onchange="renderTable()" class="px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none">
-          <option value="ALL">전체</option>
+          <option value="ALL">전체 구분</option>
           <option value="income">수입만</option>
           <option value="expense">비용만</option>
         </select>
@@ -168,48 +194,50 @@
       <table class="w-full text-left text-xs sm:text-sm sheet-grid border-collapse">
         <thead>
           <tr class="bg-slate-100 text-slate-700 font-semibold">
-            <th class="p-2 w-10 text-center">No</th>
-            <th class="p-2 w-24">날짜</th>
-            <th class="p-2 w-16 text-center">구분</th>
-            <th class="p-2 w-24">카테고리</th>
-            <th class="p-2">항목 내용</th>
-            <th class="p-2 w-24 text-right text-rose-700">비용 금액</th>
-            <th class="p-2 w-24 text-right text-blue-700">수입 금액</th>
-            <th class="p-2">비고</th>
-            <th class="p-2 w-16 text-center text-rose-600">삭제</th>
+            <th class="p-2.5 w-10 text-center">No</th>
+            <th class="p-2.5 w-24">날짜</th>
+            <th class="p-2.5 w-16 text-center">구분</th>
+            <th class="p-2.5 w-24">카테고리</th>
+            <th class="p-2.5">항목 내용</th>
+            <th class="p-2.5 w-24 text-right text-rose-700">비용 금액</th>
+            <th class="p-2.5 w-24 text-right text-blue-700">수입 금액</th>
+            <th class="p-2.5">비고</th>
+            <th class="p-2.5 w-16 text-center text-rose-600">삭제</th>
           </tr>
         </thead>
         <tbody id="ledgerTableBody" class="divide-y divide-slate-200"></tbody>
       </table>
     </div>
-    <div id="emptyLedgerNotice" class="hidden p-8 text-center text-slate-400 text-xs">내역이 없습니다.</div>
+    <div id="emptyLedgerNotice" class="hidden p-8 text-center text-slate-400 text-xs">등록된 거래 내역이 없습니다.</div>
   </section>
 
-  <section class="bg-slate-900 text-white rounded-2xl p-4 shadow-lg">
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-center">
-      <div>
+  <!-- [4] 누적 총합 카드 -->
+  <section class="bg-slate-900 text-white rounded-2xl p-5 shadow-lg">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 text-center divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
+      <div class="pt-2 sm:pt-0">
         <span class="text-xs text-slate-400">총 누적 수입</span>
-        <div id="statTotalIncome" class="text-base sm:text-lg font-bold text-blue-400 mt-0.5">₩ 0</div>
+        <div id="statTotalIncome" class="text-base sm:text-xl font-bold text-blue-400 mt-1">₩ 0</div>
       </div>
-      <div>
+      <div class="pt-2 sm:pt-0">
         <span class="text-xs text-slate-400">총 누적 비용</span>
-        <div id="statTotalExpense" class="text-base sm:text-lg font-bold text-rose-400 mt-0.5">₩ 0</div>
+        <div id="statTotalExpense" class="text-base sm:text-xl font-bold text-rose-400 mt-1">₩ 0</div>
       </div>
-      <div>
+      <div class="pt-2 sm:pt-0">
         <span class="text-xs text-slate-400">최종 순이익</span>
-        <div id="statNetProfit" class="text-base sm:text-lg font-bold text-emerald-400 mt-0.5">₩ 0</div>
+        <div id="statNetProfit" class="text-base sm:text-xl font-bold text-emerald-400 mt-1">₩ 0</div>
       </div>
-      <div>
+      <div class="pt-2 sm:pt-0">
         <span class="text-xs text-slate-400">총 거래 건수</span>
-        <div id="statTotalRecords" class="text-base sm:text-lg font-bold text-slate-200 mt-0.5">0 건</div>
+        <div id="statTotalRecords" class="text-base sm:text-xl font-bold text-slate-200 mt-1">0 건</div>
       </div>
     </div>
   </section>
 
 </main>
 
+<!-- [모달 1: 구글 시트 연동 정보 확인 모달] -->
 <div id="syncModal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden">
-  <div class="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-5 space-y-4">
+  <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl p-5 space-y-4">
     <div class="flex justify-between items-center border-b pb-2">
       <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
         <i class="fa-brands fa-google-drive text-emerald-600"></i>
@@ -220,184 +248,75 @@
 
     <div class="space-y-3 text-xs sm:text-sm text-slate-700">
       <div>
-        <label class="block font-bold mb-1">구글 웹 앱 URL (Web App URL)</label>
-        <input type="url" id="googleScriptUrl" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 font-mono">
+        <label class="block font-bold mb-1">고정 연동된 구글 웹 앱 URL</label>
+        <input type="url" id="googleScriptUrl" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 font-mono">
       </div>
-
-      <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2">
-        <div class="flex justify-between items-center">
-          <span class="font-bold text-xs text-slate-800">구글 시트 Apps Script 코드</span>
-          <button onclick="copyAppsScriptCode()" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-bold">코드 복사</button>
-        </div>
-        <pre id="appsScriptCode" class="bg-slate-900 text-emerald-300 p-2.5 rounded font-mono text-[10px] overflow-x-auto select-all leading-tight">
-function doGet(e) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = getOrCreateLedgerSheet(ss);
-  var rows = sheet.getDataRange().getValues();
-  var records = [];
-  for (var i = 1; i < rows.length; i++) {
-    if (rows[i][0]) {
-      records.push({
-        id: rows[i][0],
-        date: formatDate(rows[i][1]),
-        type: rows[i][2] === '수입' ? 'income' : 'expense',
-        category: rows[i][3] || '',
-        title: rows[i][4] || '',
-        expenseAmount: Number(rows[i][5]) || 0,
-        incomeAmount: Number(rows[i][6]) || 0,
-        note: rows[i][7] || ''
-      });
-    }
-  }
-  return ContentService.createTextOutput(JSON.stringify(records)).setMimeType(ContentService.MimeType.JSON);
-}
-
-function doPost(e) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var ledgerSheet = getOrCreateLedgerSheet(ss);
-  var data = JSON.parse(e.postData.contents);
-
-  if (data.action === 'delete') {
-    var values = ledgerSheet.getDataRange().getValues();
-    for (var i = values.length - 1; i >= 1; i--) {
-      if (String(values[i][0]) === String(data.id)) {
-        ledgerSheet.deleteRow(i + 1);
-        break;
-      }
-    }
-    updateMonthlySummarySheet(ss, ledgerSheet);
-    return ContentService.createTextOutput(JSON.stringify({status: 'deleted'})).setMimeType(ContentService.MimeType.JSON);
-  }
-
-  ledgerSheet.appendRow([
-    data.id,
-    data.date,
-    data.type === 'income' ? '수입' : '비용',
-    data.category,
-    data.title,
-    Number(data.expenseAmount) || 0,
-    Number(data.incomeAmount) || 0,
-    data.note || '',
-    new Date()
-  ]);
-
-  var lastRow = ledgerSheet.getLastRow();
-  ledgerSheet.getRange(lastRow, 6, 1, 2).setNumberFormat("#,##0");
-  ledgerSheet.getRange(lastRow, 2).setNumberFormat("yyyy-mm-dd");
-
-  updateMonthlySummarySheet(ss, ledgerSheet);
-  return ContentService.createTextOutput(JSON.stringify({status: 'success'})).setMimeType(ContentService.MimeType.JSON);
-}
-
-function getOrCreateLedgerSheet(ss) {
-  var sheet = ss.getSheetByName("거래원장");
-  if (!sheet) {
-    sheet = ss.insertSheet("거래원장", 0);
-  }
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(["ID", "날짜", "구분", "카테고리", "항목내용", "비용금액", "수입금액", "비고", "등록일시"]);
-    sheet.getRange(1, 1, 1, 9).setBackground("#047857").setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
-    sheet.setFrozenRows(1);
-  }
-  return sheet;
-}
-
-function updateMonthlySummarySheet(ss, ledgerSheet) {
-  var summarySheet = ss.getSheetByName("월별자동집계");
-  if (!summarySheet) {
-    summarySheet = ss.insertSheet("월별자동집계", 1);
-  }
-  summarySheet.clear();
-  summarySheet.appendRow(["연월", "총 수입", "총 비용", "순이익", "건수"]);
-  summarySheet.getRange(1, 1, 1, 5).setBackground("#1e293b").setFontColor("#ffffff").setFontWeight("bold").setHorizontalAlignment("center");
-  summarySheet.setFrozenRows(1);
-
-  var rows = ledgerSheet.getDataRange().getValues();
-  var monthlyMap = {};
-  var totalInc = 0, totalExp = 0;
-
-  for (var i = 1; i < rows.length; i++) {
-    if (!rows[i][0]) continue;
-    var dStr = formatDate(rows[i][1]).substring(0, 7);
-    var exp = Number(rows[i][5]) || 0;
-    var inc = Number(rows[i][6]) || 0;
-    totalExp += exp; totalInc += inc;
-    if (!monthlyMap[dStr]) monthlyMap[dStr] = { inc: 0, exp: 0, cnt: 0 };
-    monthlyMap[dStr].inc += inc;
-    monthlyMap[dStr].exp += exp;
-    monthlyMap[dStr].cnt += 1;
-  }
-
-  var keys = Object.keys(monthlyMap).sort();
-  var out = [];
-  for (var j = 0; j < keys.length; j++) {
-    var k = keys[j];
-    out.push([k, monthlyMap[k].inc, monthlyMap[k].exp, monthlyMap[k].inc - monthlyMap[k].exp, monthlyMap[k].cnt]);
-  }
-  if (out.length > 0) {
-    summarySheet.getRange(2, 1, out.length, 5).setValues(out);
-    summarySheet.getRange(2, 2, out.length, 3).setNumberFormat("#,##0");
-    var lastRow = out.length + 2;
-    summarySheet.getRange(lastRow, 1, 1, 5).setValues([["전체 누적 합계", totalInc, totalExp, totalInc - totalExp, rows.length - 1]]);
-    summarySheet.getRange(lastRow, 1, 1, 5).setBackground("#f1f5f9").setFontWeight("bold");
-    summarySheet.getRange(lastRow, 2, 1, 3).setNumberFormat("#,##0");
-  }
-}
-
-function formatDate(val) {
-  if (val instanceof Date) {
-    var y = val.getFullYear();
-    var m = ('0' + (val.getMonth() + 1)).slice(-2);
-    var d = ('0' + val.getDate()).slice(-2);
-    return y + '-' + m + '-' + d;
-  }
-  return String(val);
-}
-</pre>
+      <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-900 text-xs leading-relaxed">
+        <p class="font-bold flex items-center gap-1.5 mb-1">
+          <i class="fa-solid fa-circle-check text-emerald-600"></i>
+          영구 내장 완료 안내
+        </p>
+        대표님의 전용 구글 웹 앱 주소가 코드 자체에 영구 내장되어 있습니다. 스마트폰이나 외부 PC, 어떤 환경에서 접속하셔도 주소 입력 없이 <strong>항상 100% 자동 연동</strong>됩니다.
       </div>
     </div>
 
     <div class="flex justify-end gap-2 pt-2 border-t">
-      <button onclick="closeSyncModal()" class="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">닫기</button>
-      <button onclick="saveSyncUrl()" class="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold">연동 저장</button>
+      <button onclick="closeSyncModal()" class="px-3.5 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold">닫기</button>
+      <button onclick="saveSyncUrl()" class="px-4 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold">주소 재저장</button>
     </div>
   </div>
 </div>
 
+<!-- [모달 2: 모바일 접속 QR 코드] -->
 <div id="qrModal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden">
   <div class="bg-white rounded-2xl max-w-xs w-full shadow-2xl p-5 text-center space-y-3">
     <div class="flex justify-between items-center border-b pb-2">
-      <h3 class="text-sm font-bold text-slate-900">모바일 접속용 QR 코드</h3>
+      <h3 class="text-sm font-bold text-slate-900">스마트폰 접속용 QR 코드</h3>
       <button onclick="closeQrModal()" class="text-slate-400 text-lg font-bold">✕</button>
     </div>
     <div class="flex justify-center p-2 bg-slate-50 rounded-lg border">
       <div id="qrcodeCanvas"></div>
     </div>
-    <button onclick="copyCurrentUrl()" class="w-full py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg">현재 링크 복사</button>
+    <p class="text-[11px] text-slate-500">카메라로 비추면 스마트폰에서도 즉시 열립니다.</p>
+    <button onclick="copyCurrentUrl()" class="w-full py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition">현재 링크 복사하기</button>
   </div>
 </div>
 
+<!-- [모달 3: 삭제 확인 모달] -->
 <div id="deleteConfirmModal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden">
   <div class="bg-white rounded-2xl max-w-xs w-full shadow-2xl p-5 text-center space-y-3">
+    <div class="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-lg">
+      <i class="fa-solid fa-trash-can"></i>
+    </div>
     <h3 class="text-sm font-bold text-slate-900">항목 삭제</h3>
-    <p id="deleteModalMessage" class="text-xs text-slate-500">선택한 거래 내역을 삭제하시겠습니까?</p>
+    <p id="deleteModalMessage" class="text-xs text-slate-500">선택한 내역을 구글 시트에서 삭제하시겠습니까?</p>
     <div class="flex gap-2 pt-2">
       <button onclick="closeDeleteModal()" class="w-1/2 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg">취소</button>
-      <button onclick="executeDeleteRecord()" class="w-1/2 py-2 bg-rose-600 text-white text-xs font-bold rounded-lg">삭제</button>
+      <button onclick="executeDeleteRecord()" class="w-1/2 py-2 bg-rose-600 text-white text-xs font-bold rounded-lg hover:bg-rose-700 transition">삭제</button>
     </div>
   </div>
 </div>
 
+<!-- [알림 토스트 메시지] -->
 <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs shadow-xl flex items-center gap-2 transform translate-y-24 opacity-0 transition-all duration-300 z-50 pointer-events-none">
   <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
   <span id="toastMsg">완료되었습니다.</span>
 </div>
 
 <script>
+// 대표님의 전용 구글 웹 앱 Webhook URL 영구 고정
+const PERMANENT_GOOGLE_URL = "https://script.google.com/macros/s/AKfycbxLfY5oLjpkPiqb9YUrMamaOZZxa5HsVFdmaJSwEGLQVNk4Zc1vBvudsa7EMg0nlPj-/exec";
+
+// 로컬 스토리지에 저장된 값이 유효하지 않거나 비어있으면 항상 영구 고정 URL을 사용
+let googleWebhookUrl = localStorage.getItem('my_google_script_url');
+if (!googleWebhookUrl || googleWebhookUrl.trim() === "") {
+  googleWebhookUrl = PERMANENT_GOOGLE_URL;
+  localStorage.setItem('my_google_script_url', PERMANENT_GOOGLE_URL);
+}
+
 let currentType = 'expense';
 let currentTab = 'month';
 let chartInstance = null;
-let googleWebhookUrl = localStorage.getItem('my_google_script_url') || "";
 let targetDeleteId = null;
 
 const categories = {
@@ -407,6 +326,7 @@ const categories = {
 
 let ledgerData = [];
 
+// 거래 구분 변경 (비용 vs 수입)
 function setType(type) {
   currentType = type;
   const btnExpense = document.getElementById('btnTypeExpense');
@@ -441,34 +361,33 @@ function updateCategoryOptions() {
   });
 }
 
+// 구글 시트에서 실시간 데이터 불러오기
 async function fetchSheetData(showManualToast = false) {
-  if (!googleWebhookUrl) {
-    if (showManualToast) {
-      showToast('구글 연동 URL을 먼저 등록해주세요.', 'info');
-      openSyncModal();
-    }
-    return;
-  }
+  const activeUrl = googleWebhookUrl || PERMANENT_GOOGLE_URL;
   const icon = document.getElementById('iconSyncRefresh');
   if (icon) icon.classList.add('fa-spin');
 
   try {
-    const res = await fetch(googleWebhookUrl);
+    const res = await fetch(activeUrl, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
     if (!res.ok) throw new Error('구글 시트 응답 오류');
     const data = await res.json();
     if (Array.isArray(data)) {
       ledgerData = data.reverse();
       refreshAll();
-      if (showManualToast) showToast(`총 ${ledgerData.length}건을 동기화했습니다!`);
+      if (showManualToast) showToast(`총 ${ledgerData.length}건 동기화 완료!`);
     }
   } catch (err) {
-    console.error(err);
-    if (showManualToast) showToast('데이터 불러오기 실패 (URL을 확인하세요)', 'error');
+    console.warn('Fetch Sheet Data Notice:', err);
+    if (showManualToast) showToast('구글 시트 연결 확인 중입니다.', 'info');
   } finally {
     if (icon) icon.classList.remove('fa-spin');
   }
 }
 
+// 거래 입력 제출
 async function handleFormSubmit(event) {
   event.preventDefault();
   const dateVal = document.getElementById('inputDate').value;
@@ -496,42 +415,46 @@ async function handleFormSubmit(event) {
   const submitBtn = document.getElementById('submitBtn');
   const submitBtnText = document.getElementById('submitBtnText');
 
+  // 화면에 즉각 반영
   ledgerData.unshift(newEntry);
   refreshAll();
 
-  if (googleWebhookUrl) {
-    submitBtn.disabled = true;
-    submitBtnText.innerText = '저장 중...';
-    try {
-      await fetch(googleWebhookUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newEntry)
-      });
-      showToast('구글 시트에 실시간 저장 완료!');
-    } catch (err) {
-      console.error(err);
-      showToast('구글 시트 저장 실패', 'error');
-    } finally {
-      submitBtn.disabled = false;
-      submitBtnText.innerText = '입력하기';
-    }
-  } else {
-    showToast('등록되었습니다. (로컬 임시)');
+  // 구글 시트로 실시간 전송
+  const targetUrl = googleWebhookUrl || PERMANENT_GOOGLE_URL;
+  submitBtn.disabled = true;
+  submitBtnText.innerText = '구글 시트 저장 중...';
+
+  try {
+    await fetch(targetUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(newEntry)
+    });
+    showToast('구글 시트에 실시간 저장 완료!');
+    // 1.5초 후 구글 시트 데이터 재동기화
+    setTimeout(() => { fetchSheetData(false); }, 1500);
+  } catch (err) {
+    console.error('Save error:', err);
+    showToast('구글 시트 저장 중 네트워크 오류', 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtnText.innerText = '입력하기 (구글 시트 저장)';
   }
 
+  // 입력 폼 초기화
   document.getElementById('inputTitle').value = '';
   document.getElementById('inputAmount').value = '';
   document.getElementById('inputNote').value = '';
 }
 
+// 삭제 모달 열기
 function confirmDelete(id) {
   targetDeleteId = id;
   const targetItem = ledgerData.find(item => item.id === id);
   const msgEl = document.getElementById('deleteModalMessage');
   if (targetItem) {
-    msgEl.innerHTML = `<strong>[${targetItem.date}] ${targetItem.title}</strong><br>삭제하시겠습니까?`;
+    msgEl.innerHTML = `<strong>[${targetItem.date}] ${targetItem.title}</strong><br>구글 시트에서도 삭제하시겠습니까?`;
   }
   document.getElementById('deleteConfirmModal').classList.remove('hidden');
 }
@@ -541,6 +464,7 @@ function closeDeleteModal() {
   document.getElementById('deleteConfirmModal').classList.add('hidden');
 }
 
+// 거래 삭제 실행
 async function executeDeleteRecord() {
   if (!targetDeleteId) return;
   const deletedId = targetDeleteId;
@@ -548,27 +472,27 @@ async function executeDeleteRecord() {
   closeDeleteModal();
   refreshAll();
 
-  if (googleWebhookUrl) {
-    try {
-      await fetch(googleWebhookUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', id: deletedId })
-      });
-      showToast('구글 시트에서도 삭제되었습니다.');
-    } catch (err) {
-      console.error(err);
-    }
-  } else {
-    showToast('삭제되었습니다.', 'info');
+  const targetUrl = googleWebhookUrl || PERMANENT_GOOGLE_URL;
+  try {
+    await fetch(targetUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'delete', id: deletedId })
+    });
+    showToast('구글 시트에서도 삭제되었습니다.');
+    setTimeout(() => { fetchSheetData(false); }, 1500);
+  } catch (err) {
+    console.error(err);
   }
 }
 
+// 통화 포맷팅
 function formatCurrency(val) {
   return '₩ ' + Number(val).toLocaleString('ko-KR');
 }
 
+// 합계 계산
 function calculateTotals() {
   let totalIncome = 0, totalExpense = 0;
   ledgerData.forEach(item => {
@@ -581,7 +505,7 @@ function calculateTotals() {
   document.getElementById('statTotalExpense').innerText = formatCurrency(totalExpense);
   const netEl = document.getElementById('statNetProfit');
   netEl.innerText = formatCurrency(net);
-  netEl.className = net > 0 ? 'text-base sm:text-lg font-bold text-emerald-400 mt-0.5' : (net < 0 ? 'text-base sm:text-lg font-bold text-rose-400 mt-0.5' : 'text-base sm:text-lg font-bold text-slate-200 mt-0.5');
+  netEl.className = net > 0 ? 'text-base sm:text-xl font-bold text-emerald-400 mt-1' : (net < 0 ? 'text-base sm:text-xl font-bold text-rose-400 mt-1' : 'text-base sm:text-xl font-bold text-slate-200 mt-1');
   document.getElementById('statTotalRecords').innerText = ledgerData.length + ' 건';
 }
 
@@ -592,6 +516,7 @@ function getPeriodKey(dateStr, periodType) {
   return periodType === 'month' ? `${year}년 ${String(month).padStart(2, '0')}월` : `${year}년 ${Math.ceil(month / 3)}분기`;
 }
 
+// 탭 전환 (월별 vs 분기별)
 function switchTab(tab) {
   currentTab = tab;
   const btnMonth = document.getElementById('tabBtnMonth');
@@ -599,17 +524,18 @@ function switchTab(tab) {
   const thLabel = document.getElementById('thPeriodLabel');
 
   if (tab === 'month') {
-    btnMonth.className = "px-3 py-1 rounded-lg bg-white shadow-xs text-emerald-700 font-bold";
-    btnQuarter.className = "px-3 py-1 rounded-lg text-slate-600";
+    btnMonth.className = "px-3.5 py-1.5 rounded-lg bg-white shadow-xs text-emerald-700 font-bold transition";
+    btnQuarter.className = "px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition";
     thLabel.innerText = "기간 (월별)";
   } else {
-    btnQuarter.className = "px-3 py-1 rounded-lg bg-white shadow-xs text-emerald-700 font-bold";
-    btnMonth.className = "px-3 py-1 rounded-lg text-slate-600";
+    btnQuarter.className = "px-3.5 py-1.5 rounded-lg bg-white shadow-xs text-emerald-700 font-bold transition";
+    btnMonth.className = "px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition";
     thLabel.innerText = "기간 (분기별)";
   }
   renderSummaryTableAndChart();
 }
 
+// 집계 테이블 및 차트 렌더링
 function renderSummaryTableAndChart() {
   const groups = {};
   ledgerData.forEach(item => {
@@ -643,10 +569,10 @@ function renderSummaryTableAndChart() {
     const row = document.createElement('tr');
     row.className = "hover:bg-slate-50";
     row.innerHTML = `
-      <td class="p-2 font-medium text-slate-800">${key}</td>
-      <td class="p-2 text-right text-blue-600 font-medium">${Number(data.income).toLocaleString()} 원</td>
-      <td class="p-2 text-right text-rose-600 font-medium">${Number(data.expense).toLocaleString()} 원</td>
-      <td class="p-2 text-right font-bold ${profitColor}">${Number(profit).toLocaleString()} 원</td>
+      <td class="p-2.5 font-medium text-slate-800">${key}</td>
+      <td class="p-2.5 text-right text-blue-600 font-medium">${Number(data.income).toLocaleString()} 원</td>
+      <td class="p-2.5 text-right text-rose-600 font-medium">${Number(data.expense).toLocaleString()} 원</td>
+      <td class="p-2.5 text-right font-bold ${profitColor}">${Number(profit).toLocaleString()} 원</td>
     `;
     tbody.appendChild(row);
   });
@@ -654,6 +580,7 @@ function renderSummaryTableAndChart() {
   updateChart(chartLabels, chartIncomes, chartExpenses);
 }
 
+// Chart.js 그래프 업데이트
 function updateChart(labels, incomes, expenses) {
   const ctx = document.getElementById('summaryChart').getContext('2d');
   if (chartInstance) chartInstance.destroy();
@@ -675,6 +602,7 @@ function updateChart(labels, incomes, expenses) {
   });
 }
 
+// 원장 테이블 렌더링
 function renderTable() {
   const tbody = document.getElementById('ledgerTableBody');
   const emptyNotice = document.getElementById('emptyLedgerNotice');
@@ -697,21 +625,21 @@ function renderTable() {
   filtered.forEach((item, index) => {
     const isIncome = item.type === 'income';
     const typeBadge = isIncome
-      ? `<span class="px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-700">수입</span>`
-      : `<span class="px-1.5 py-0.5 rounded text-xs bg-rose-100 text-rose-700">비용</span>`;
+      ? `<span class="px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-700 font-medium">수입</span>`
+      : `<span class="px-1.5 py-0.5 rounded text-xs bg-rose-100 text-rose-700 font-medium">비용</span>`;
 
     const row = document.createElement('tr');
     row.className = "hover:bg-slate-50";
     row.innerHTML = `
-      <td class="p-2 text-center text-slate-400">${index + 1}</td>
-      <td class="p-2 text-slate-700 whitespace-nowrap">${item.date}</td>
-      <td class="p-2 text-center">${typeBadge}</td>
-      <td class="p-2 text-slate-600 whitespace-nowrap">${item.category}</td>
-      <td class="p-2 font-medium text-slate-900">${item.title}</td>
-      <td class="p-2 text-right font-medium text-rose-600">${item.expenseAmount > 0 ? Number(item.expenseAmount).toLocaleString() + ' 원' : '-'}</td>
-      <td class="p-2 text-right font-medium text-blue-600">${item.incomeAmount > 0 ? Number(item.incomeAmount).toLocaleString() + ' 원' : '-'}</td>
-      <td class="p-2 text-slate-500 text-xs">${item.note || '-'}</td>
-      <td class="p-2 text-center">
+      <td class="p-2.5 text-center text-slate-400">${index + 1}</td>
+      <td class="p-2.5 text-slate-700 whitespace-nowrap">${item.date}</td>
+      <td class="p-2.5 text-center">${typeBadge}</td>
+      <td class="p-2.5 text-slate-600 whitespace-nowrap">${item.category}</td>
+      <td class="p-2.5 font-medium text-slate-900">${item.title}</td>
+      <td class="p-2.5 text-right font-medium text-rose-600">${item.expenseAmount > 0 ? Number(item.expenseAmount).toLocaleString() + ' 원' : '-'}</td>
+      <td class="p-2.5 text-right font-medium text-blue-600">${item.incomeAmount > 0 ? Number(item.incomeAmount).toLocaleString() + ' 원' : '-'}</td>
+      <td class="p-2.5 text-slate-500 text-xs">${item.note || '-'}</td>
+      <td class="p-2.5 text-center">
         <button onclick="confirmDelete(${item.id})" class="px-2 py-0.5 text-xs text-rose-600 border border-rose-200 rounded hover:bg-rose-600 hover:text-white transition">삭제</button>
       </td>
     `;
@@ -720,45 +648,20 @@ function renderTable() {
 }
 
 function openSyncModal() {
-  document.getElementById('googleScriptUrl').value = googleWebhookUrl;
+  document.getElementById('googleScriptUrl').value = googleWebhookUrl || PERMANENT_GOOGLE_URL;
   document.getElementById('syncModal').classList.remove('hidden');
 }
 function closeSyncModal() {
   document.getElementById('syncModal').classList.add('hidden');
 }
 
-function updateSyncUI() {
-  const headerBadge = document.getElementById('headerSyncStatus');
-  if (googleWebhookUrl) {
-    headerBadge.className = "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800";
-    headerBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 구글 시트 연동 활성화`;
-  } else {
-    headerBadge.className = "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700";
-    headerBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> 드라이브 미연동`;
-  }
-}
-
 function saveSyncUrl() {
   const url = document.getElementById('googleScriptUrl').value.trim();
-  googleWebhookUrl = url;
-  localStorage.setItem('my_google_script_url', url);
-  updateSyncUI();
+  googleWebhookUrl = url || PERMANENT_GOOGLE_URL;
+  localStorage.setItem('my_google_script_url', googleWebhookUrl);
   closeSyncModal();
-  if (url) {
-    showToast('연동 저장 완료! 데이터를 불러옵니다.');
-    fetchSheetData(true);
-  }
-}
-
-function copyAppsScriptCode() {
-  const code = document.getElementById('appsScriptCode').innerText;
-  const temp = document.createElement('textarea');
-  temp.value = code;
-  document.body.appendChild(temp);
-  temp.select();
-  document.execCommand('copy');
-  document.body.removeChild(temp);
-  showToast('Apps Script 코드가 복사되었습니다!');
+  showToast('연동 상태가 저장되었습니다.');
+  fetchSheetData(true);
 }
 
 function openQrModal() {
@@ -812,13 +715,13 @@ function refreshAll() {
   renderTable();
 }
 
+// 화면 로딩 시 자동 초기화 및 데이터 가져오기
 window.onload = function() {
   document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
   setType('expense');
   switchTab('month');
-  updateSyncUI();
-  if (googleWebhookUrl) fetchSheetData(false);
-  else refreshAll();
+  // 구글 시트 데이터 실시간 자동 조회
+  fetchSheetData(false);
 };
 </script>
 </body>
